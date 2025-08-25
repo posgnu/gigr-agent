@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     DESCRIPTION: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
 
+    # MCP Configuration
+    MCP_SERVER_PATH: str = "/Users/posgnu/repo/gigr-db-mcp"
+    MCP_SERVER_URL: Optional[str] = (
+        None  # Set to e.g. "http://localhost:8080/mcp" if using HTTP transport
+    )
+
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
 

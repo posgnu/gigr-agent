@@ -1,11 +1,22 @@
 import operator
-from typing import Annotated, Any, AsyncGenerator, Dict, List, Sequence, TypedDict
+from typing import (
+    Annotated,
+    Any,
+    AsyncGenerator,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    TypedDict,
+)
 
 from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
+from loguru import logger
 
 from fastapi_langraph.agent.tools.mock_search import mock_search
 
@@ -17,7 +28,7 @@ class ToolNode:
     def __init__(self, tools: List[Any]) -> None:
         self.tools = {tool.name: tool for tool in tools}
 
-    def __call__(self, state: "AgentState") -> Dict[str, Any]:
+    async def __call__(self, state: "AgentState") -> Dict[str, Any]:
         messages = state["messages"]
         last_message = messages[-1]
 
@@ -26,7 +37,15 @@ class ToolNode:
             for tool_call in last_message.tool_calls:
                 if tool_call["name"] in self.tools:
                     tool = self.tools[tool_call["name"]]
-                    result = tool.invoke(tool_call["args"])
+                    try:
+                        # Try async invocation first (for MCP tools)
+                        if hasattr(tool, "ainvoke"):
+                            result = await tool.ainvoke(tool_call["args"])
+                        else:
+                            # Fallback to sync invocation
+                            result = tool.invoke(tool_call["args"])
+                    except Exception as e:
+                        result = f"Error executing tool: {str(e)}"
                     tool_messages.append(
                         ToolMessage(content=str(result), tool_call_id=tool_call["id"])
                     )
@@ -42,21 +61,28 @@ class AgentState(TypedDict):
 
 class ReActAgent:
     """
-    Enhanced ReAct Agent with thread-based persistence.
+    Enhanced ReAct Agent with thread-based persistence and MCP support.
 
     Features:
     - Thread-based conversation persistence using MemorySaver
     - Tool integration with LangGraph
+    - MCP server tools integration
     - Streaming response support
     - Context window management
     """
 
-    def __init__(self) -> None:
+    def __init__(self, mcp_tools: Optional[List[Tool]] = None) -> None:
         # Initialize LLM (using gpt-4o-mini as GPT-5 may not be available yet)
         self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1, streaming=True)
 
-        # Tools
+        # Tools - combine local tools with MCP tools
         self.tools = [mock_search]
+
+        # Add MCP tools if provided
+        if mcp_tools:
+            self.tools.extend(mcp_tools)
+            logger.info(f"Added {len(mcp_tools)} MCP tools to agent")
+
         self.llm_with_tools = self.llm.bind_tools(self.tools)
 
         # Initialize persistence
@@ -229,5 +255,15 @@ class ReActAgent:
             return False
 
 
-# Create global agent instance
-memory_enabled_agent = ReActAgent()
+# Global agent instance - will be initialized in main.py with MCP tools
+memory_enabled_agent: Optional[ReActAgent] = None
+
+
+def set_global_agent(agent: ReActAgent) -> None:
+    """Set the global agent instance.
+
+    Args:
+        agent: The ReActAgent instance to use globally.
+    """
+    global memory_enabled_agent
+    memory_enabled_agent = agent

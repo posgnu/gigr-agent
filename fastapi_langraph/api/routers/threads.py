@@ -8,7 +8,7 @@ from starlette.status import (
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
-from fastapi_langraph.agent.agent import memory_enabled_agent
+from fastapi_langraph.agent import agent as agent_module
 from fastapi_langraph.schemas import ThreadHistoryResponse
 
 # Configure logging
@@ -37,7 +37,12 @@ async def get_thread_history(
     """
     try:
         # Get thread history from agent
-        history = memory_enabled_agent.get_thread_history(thread_id)
+        if agent_module.memory_enabled_agent is None:
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Agent not initialized",
+            )
+        history = agent_module.memory_enabled_agent.get_thread_history(thread_id)
 
         if not history:
             raise HTTPException(
@@ -73,7 +78,12 @@ async def delete_thread(thread_id: str, response: Response) -> None:
         No content (204) on successful deletion
     """
     try:
-        success = memory_enabled_agent.clear_thread(thread_id)
+        if agent_module.memory_enabled_agent is None:
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Agent not initialized",
+            )
+        success = agent_module.memory_enabled_agent.clear_thread(thread_id)
 
         if not success:
             raise HTTPException(
@@ -106,7 +116,12 @@ async def clear_thread(thread_id: str) -> ThreadHistoryResponse:
         Empty thread history response
     """
     try:
-        success = memory_enabled_agent.clear_thread(thread_id)
+        if agent_module.memory_enabled_agent is None:
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Agent not initialized",
+            )
+        success = agent_module.memory_enabled_agent.clear_thread(thread_id)
 
         if not success:
             raise HTTPException(
@@ -145,7 +160,12 @@ async def archive_thread(thread_id: str) -> ThreadHistoryResponse:
         # 3. Update thread metadata
 
         # For now, just return the current history
-        history = memory_enabled_agent.get_thread_history(thread_id)
+        if agent_module.memory_enabled_agent is None:
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Agent not initialized",
+            )
+        history = agent_module.memory_enabled_agent.get_thread_history(thread_id)
 
         if not history:
             raise HTTPException(

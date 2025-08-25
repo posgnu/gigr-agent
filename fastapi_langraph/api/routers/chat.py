@@ -6,7 +6,7 @@ from typing import Any, AsyncGenerator, Dict, List, Union
 from fastapi import APIRouter, Body
 from fastapi.responses import StreamingResponse
 
-from fastapi_langraph.agent.agent import memory_enabled_agent
+from fastapi_langraph.agent import agent as agent_module
 from fastapi_langraph.schemas import StreamRequest, StreamResponse
 
 # Configure logging
@@ -147,7 +147,13 @@ async def stream_chat(request: StreamRequest = Body(...)) -> StreamingResponse:
             yield f"{metadata_response.model_dump_json()}\n"
 
             # Stream agent responses using proper LangGraph streaming
-            async for event in memory_enabled_agent.astream(
+            # Get the global agent instance
+            if agent_module.memory_enabled_agent is None:
+                raise ValueError(
+                    "Agent not initialized. Please restart the application."
+                )
+
+            async for event in agent_module.memory_enabled_agent.astream(
                 input_data={"input": request.input},
                 thread_id=thread_id,
                 session_metadata=request.session_metadata,
