@@ -14,10 +14,10 @@ from fastapi_langraph.agent.tools.mock_search import mock_search
 class ToolNode:
     """Simple ToolNode implementation for langgraph compatibility."""
 
-    def __init__(self, tools: list) -> None:
+    def __init__(self, tools: List[Any]) -> None:
         self.tools = {tool.name: tool for tool in tools}
 
-    def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def __call__(self, state: "AgentState") -> Dict[str, Any]:
         messages = state["messages"]
         last_message = messages[-1]
 
