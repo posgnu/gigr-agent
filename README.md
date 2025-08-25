@@ -124,18 +124,6 @@ Stream conversational responses with thread persistence.
 
 ## 🧪 Testing
 
-### Run Tests
-```bash
-# Run all tests
-poetry run pytest tests/
-
-# Run with coverage
-poetry run pytest tests/ --cov=fastapi_langraph
-
-# Run specific test
-poetry run pytest tests/middleware/test_logging.py -v
-```
-
 ### Interactive Testing
 ```bash
 # Use the included chat client
@@ -229,96 +217,28 @@ Agent configuration in `agent.py`:
 - Max context: 20 messages
 - Streaming: Enabled
 
-## 🚀 Production Deployment
+### Updating Model Configuration
 
-### 1. Update Persistence
-
-Replace in-memory storage with persistent backend:
+To change the LLM model or its configuration, modify the initialization in `fastapi_langraph/agent/agent.py`:
 
 ```python
-# SQLite
-from langgraph.checkpoint.sqlite import SqliteSaver
-checkpointer = SqliteSaver("./conversations.db")
-
-# PostgreSQL
-from langgraph.checkpoint.postgres import PostgresSaver
-checkpointer = PostgresSaver(connection_string="postgresql://...")
+# In the ReActAgent.__init__ method, line 76:
+self.llm = ChatOpenAI(
+    model="gpt-4o-mini",     # Change model here (e.g., "gpt-4", "gpt-3.5-turbo")
+    temperature=0.1,         # Adjust temperature (0.0-2.0)
+    streaming=True,          # Enable/disable streaming
+    max_tokens=1000,         # Optional: Set max response tokens
+    request_timeout=60       # Optional: Set timeout in seconds
+)
 ```
 
-### 2. Add Authentication
+Available OpenAI models:
+- `gpt-4o-mini` - Fast, cost-effective (default)
+- `gpt-4o` - Most capable, balanced
+- `gpt-4-turbo` - Previous generation turbo
+- `gpt-3.5-turbo` - Fastest, least expensive
 
-Implement authentication middleware:
-```python
-from fastapi import Security, HTTPException
-from fastapi.security import HTTPBearer
-
-security = HTTPBearer()
-
-@router.post("/chat/stream")
-async def stream_chat(
-    request: StreamRequest,
-    credentials: HTTPAuthorizationCredentials = Security(security)
-):
-    # Verify token
-    if not verify_token(credentials.credentials):
-        raise HTTPException(status_code=401)
-```
-
-### 3. Deploy with Docker
-
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY pyproject.toml poetry.lock ./
-RUN pip install poetry && poetry install --no-dev
-COPY . .
-CMD ["poetry", "run", "uvicorn", "fastapi_langraph.main:app", "--host", "0.0.0.0"]
-```
-
-### 4. Monitor and Scale
-
-- Add APM (Application Performance Monitoring)
-- Implement rate limiting
-- Set up horizontal scaling with load balancer
-- Configure observability (logs, metrics, traces)
-
-## 📚 LangGraph Documentation
-
-Key references for working with LangGraph:
-- [Getting Started](https://langchain-ai.github.io/langgraph/)
-- [Building Agents](https://langchain-ai.github.io/langgraph/tutorials/get-started/1-build-basic-chatbot/)
-- [Persistence](https://langchain-ai.github.io/langgraph/concepts/persistence/)
-- [Streaming](https://langchain-ai.github.io/langgraph/concepts/streaming/)
-- [Tools Integration](https://langchain-ai.github.io/langgraph/concepts/tools/)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Commit Convention
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation changes
-- `style:` Code style changes
-- `refactor:` Code refactoring
-- `test:` Test additions/changes
-- `chore:` Maintenance tasks
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 🆘 Support
-
-- **Issues**: [GitHub Issues](https://github.com/posgnu/gigr-agent/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/posgnu/gigr-agent/discussions)
-
----
-
-Built with FastAPI, LangGraph, and OpenAI
+Temperature settings:
+- `0.0-0.3` - Focused, deterministic responses
+- `0.4-0.7` - Balanced creativity
+- `0.8-2.0` - More creative, varied responses
