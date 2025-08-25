@@ -1,14 +1,37 @@
 import operator
 from typing import Annotated, Any, AsyncGenerator, Dict, List, Sequence, TypedDict
 
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
 
 from fastapi_langraph.agent.tools.mock_search import mock_search
+
+
+# ToolNode implementation for compatibility
+class ToolNode:
+    """Simple ToolNode implementation for langgraph compatibility."""
+
+    def __init__(self, tools: list) -> None:
+        self.tools = {tool.name: tool for tool in tools}
+
+    def __call__(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        messages = state["messages"]
+        last_message = messages[-1]
+
+        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+            tool_messages = []
+            for tool_call in last_message.tool_calls:
+                if tool_call["name"] in self.tools:
+                    tool = self.tools[tool_call["name"]]
+                    result = tool.invoke(tool_call["args"])
+                    tool_messages.append(
+                        ToolMessage(content=str(result), tool_call_id=tool_call["id"])
+                    )
+            return {"messages": tool_messages}
+        return {"messages": []}
 
 
 class AgentState(TypedDict):
@@ -62,12 +85,13 @@ class ReActAgent:
         return workflow.compile(checkpointer=self.checkpointer)
 
     def _agent_node(self, state: AgentState) -> Dict[str, Any]:
-        """Enhanced agent node with context awareness."""
+        """Enhanced agent node with streaming support."""
         try:
             # Limit context window to prevent token overflow
             messages = self._manage_context_window(state["messages"])
 
-            # Invoke LLM - streaming happens at the graph level with stream_mode="messages"
+            # The key insight: LangGraph's stream_mode="messages" works when
+            # the LLM is invoked normally. The streaming happens at the graph level.
             result = self.llm_with_tools.invoke(messages)
             return {"messages": [result]}
 
@@ -106,10 +130,9 @@ class ReActAgent:
         self, input_data: Dict[str, Any], thread_id: str, **kwargs: Any
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Stream agent responses with thread-based persistence.
+        Stream agent responses using official LangGraph streaming methods.
 
-        Note: stream_mode="messages" doesn't work with invoke() in nodes,
-        so we use astream_events which provides token-level streaming.
+        Uses graph.astream() with stream_mode for proper token streaming.
 
         Args:
             input_data: Input containing the user message
@@ -117,7 +140,7 @@ class ReActAgent:
             **kwargs: Additional arguments
 
         Yields:
-            Dictionaries containing streaming events
+            Dictionaries containing streaming chunks with metadata
         """
         try:
             # Create RunnableConfig with thread information
@@ -127,16 +150,45 @@ class ReActAgent:
             messages = [HumanMessage(content=input_data["input"])]
             initial_state = {"messages": messages}
 
-            # Use astream_events for token-level streaming
-            # This is currently the most reliable way to get token streaming
-            async for event in self.graph.astream_events(
-                initial_state, config=config, version="v2"
+            # Use official LangGraph streaming with stream_mode="messages"
+            # This works properly in LangGraph 0.4.5+
+            async for chunk in self.graph.astream(
+                initial_state, config=config, stream_mode=["messages"]
             ):
-                yield event
+                if isinstance(chunk, tuple) and len(chunk) == 2:
+                    # Multiple stream modes return (mode, data) tuples
+                    stream_mode, data = chunk
+
+                    yield {
+                        "stream_mode": stream_mode,
+                        "chunk": data,
+                        "metadata": {
+                            "thread_id": thread_id,
+                            "timestamp": __import__("datetime")
+                            .datetime.utcnow()
+                            .isoformat(),
+                        },
+                    }
+                else:
+                    # Single stream mode
+                    yield {
+                        "stream_mode": "messages",
+                        "chunk": chunk,
+                        "metadata": {
+                            "thread_id": thread_id,
+                            "timestamp": __import__("datetime")
+                            .datetime.utcnow()
+                            .isoformat(),
+                        },
+                    }
 
         except Exception as e:
-            # Yield error
-            yield {"event": "error", "data": {"error": str(e)}}
+            # Yield error in consistent format
+            yield {
+                "stream_mode": "error",
+                "chunk": {"error": str(e)},
+                "metadata": {"thread_id": thread_id},
+            }
 
     def get_thread_history(self, thread_id: str) -> List[Dict[str, Any]]:
         """Get conversation history for a specific thread."""

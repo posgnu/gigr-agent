@@ -1,73 +1,81 @@
-# FastAPI LangGraph Template
+# FastAPI LangGraph Agent
 
-A production-ready template for building enterprise-grade FastAPI applications with LangGraph integration, featuring streaming conversational AI agents with thread-based persistence and conversation management.
+A production-ready FastAPI application integrating LangGraph for building conversational AI agents with thread-based persistence, real-time streaming, and comprehensive conversation management.
 
-## 🎯 What This Template Provides
+## 🚀 Features
 
-- **Thread-Based Conversations**: Ready-to-use persistent conversation threads with unique identifiers
-- **Token-Level Streaming**: Real-time response streaming with WebSocket-like experience
-- **Enterprise-Grade Error Handling**: Comprehensive error handling and logging infrastructure
-- **Thread Management**: Complete thread lifecycle management (create, retrieve, clear, archive)
-- **RESTful API**: Well-designed API structure following enterprise patterns
-- **Type Safety**: Full TypeScript-style type annotations with Pydantic models
+- **Thread-Based Persistence**: Maintain conversation state across multiple interactions with unique thread identifiers
+- **Real-Time Token Streaming**: Stream AI responses token-by-token using NDJSON format for responsive user experience
+- **LangGraph Integration**: ReAct agent architecture with tool integration and state management
+- **Conversation Management**: Full thread lifecycle (create, retrieve, clear, archive)
+- **Production Ready**: Comprehensive error handling, logging, and monitoring
+- **Extensible Architecture**: Easy to add custom tools and modify agent behavior
 
-## 🏗️ Template Architecture
-
-### Persistence Strategy
-
-This template implements thread-based persistence using LangGraph's MemorySaver pattern:
-
-- **Thread Checkpoints**: Each conversation thread maintains its state
-- **Conversation Continuity**: Threads can be resumed exactly where they left off
-- **Message History**: Complete conversation history retrieval for any thread
+## 🏗️ Architecture
 
 ```mermaid
 graph TD
-    A[User Request] --> B[Thread Manager]
-    B --> C[Load Thread State]
-    C --> D[Agent Processing]
-    D --> E[Generate Response]
-    E --> F[Save Thread State]
-    F --> G[Stream Response]
+    A[Client Request] --> B[FastAPI Router]
+    B --> C[Thread Manager]
+    C --> D[LangGraph Agent]
+    D --> E[StateGraph Workflow]
+    E --> F[Tool Execution]
+    F --> G[Response Streaming]
+    G --> H[NDJSON Stream]
+    H --> A
 ```
 
-## 🚀 Getting Started with This Template
+### Core Components
 
-### 1. Use This Template
+1. **Agent System** (`fastapi_langraph/agent/`)
+   - ReAct agent with LangGraph state management
+   - Tool integration for extending capabilities
+   - Context window management (max 20 messages)
+   - Custom ToolNode implementation for compatibility
 
+2. **API Layer** (`fastapi_langraph/api/`)
+   - RESTful endpoints for chat and thread management
+   - NDJSON streaming for real-time responses
+   - Comprehensive error handling
+
+3. **Thread Persistence**
+   - In-memory MemorySaver (development)
+   - Thread-based conversation checkpointing
+   - Full conversation history retrieval
+
+## 📦 Installation
+
+### Prerequisites
+
+- Python 3.11+
+- Poetry for dependency management
+- OpenAI API key
+
+### Setup
+
+1. **Clone the repository**
 ```bash
-# Create a new repository from this template
-# Click "Use this template" on GitHub, or clone directly:
-git clone https://github.com/posgnu/fastapi-langraph.git your-project-name
-cd your-project-name
-
-# Rename the project
-# Update pyproject.toml, README.md, and other references as needed
+git clone https://github.com/posgnu/gigr-agent.git
+cd gigr-agent
 ```
 
-### 2. Environment Setup
-
+2. **Install dependencies**
 ```bash
-# Create environment file
-cp .env.example .env
-# Add your OPENAI_API_KEY and customize other settings
-
-# Install dependencies
 poetry install
 ```
 
-### 3. Customize Your Agent
-
-Edit `fastapi_langraph/agent/` to implement your specific agent logic:
-
-```python
-# Example: Customize the agent behavior
-# In fastapi_langraph/agent/tools/
-# Add your custom tools and capabilities
+3. **Configure environment**
+```bash
+# Create .env file
+cat > .env << EOF
+OPENAI_API_KEY=your-openai-api-key
+PROJECT_NAME=FastAPI-LangGraph
+DESCRIPTION=LangGraph Agent with Streaming
+LOG_LEVEL=INFO
+EOF
 ```
 
-### 4. Start Development Server
-
+4. **Run the development server**
 ```bash
 poetry run uvicorn fastapi_langraph.main:app --reload
 ```
@@ -76,239 +84,241 @@ The server will start at `http://localhost:8000` with:
 - API Documentation: `http://localhost:8000/docs`
 - Service Info: `http://localhost:8000/info`
 
-### 5. Test Your Implementation
+## 🔌 API Endpoints
 
-```bash
-# Use the included chat client to test your agent
-poetry run python scripts/chat.py
-```
+### Chat Streaming
 
-## 📚 Template API Structure
-
-This template provides a complete API structure that you can build upon:
-
-### Core Chat Endpoints
-
-#### `POST /chat/stream` - Stream Chat with Persistence
+#### `POST /chat/stream`
 Stream conversational responses with thread persistence.
 
-**Request Format:**
+**Request:**
 ```json
 {
-  "input": "Your user message here",
+  "input": "Hello, how can you help me?",
   "thread_id": "optional-thread-id",
   "session_metadata": {
-    "client": "your_app",
-    "timestamp": "2024-01-01T00:00:00Z"
+    "user": "user123",
+    "context": "support"
   }
 }
 ```
 
-**Response Stream Format:**
+**Response Stream (NDJSON):**
 ```json
-{"type": "metadata", "thread_id": "abc-123", "metadata": {"thread_created": true}}
-{"type": "token", "content": "Response", "thread_id": "abc-123"}
-{"type": "metadata", "thread_id": "abc-123", "metadata": {"status": "completed"}}
+{"type":"metadata","thread_id":"abc-123","metadata":{"thread_created":true}}
+{"type":"token","content":"Hello","thread_id":"abc-123"}
+{"type":"token","content":"!","thread_id":"abc-123"}
+{"type":"metadata","thread_id":"abc-123","metadata":{"status":"completed"}}
 ```
 
-### Thread Management Endpoints
+### Thread Management
 
-- `GET /threads/{thread_id}/history` - Retrieve conversation history
-- `DELETE /threads/{thread_id}` - Delete thread and history
-- `PUT /threads/{thread_id}/clear` - Clear thread messages
-- `PUT /threads/{thread_id}/archive` - Archive thread (customize as needed)
+- `GET /threads/{thread_id}/history` - Retrieve full conversation history
+- `DELETE /threads/{thread_id}` - Delete thread and all messages
+- `PUT /threads/{thread_id}/clear` - Clear thread messages (keep thread)
+- `PUT /threads/{thread_id}/archive` - Archive thread
 
 ### Service Information
 
-- `GET /info` - Service information and capabilities
+- `GET /info` - Service metadata and capabilities
 
-## 🛠️ Customization Guide
+## 🧪 Testing
 
-### 1. Agent Customization
-
-Replace the default agent implementation in `fastapi_langraph/agent/`:
-
-```python
-# Example: Custom agent with your tools
-from your_tools import CustomTool1, CustomTool2
-
-def create_your_agent():
-    # Implement your agent logic here
-    return agent
-```
-
-### 2. Add Custom Tools
-
-Extend the tools directory:
-
+### Run Tests
 ```bash
-# Add your tools in fastapi_langraph/agent/tools/
-touch fastapi_langraph/agent/tools/your_custom_tool.py
+# Run all tests
+poetry run pytest tests/
+
+# Run with coverage
+poetry run pytest tests/ --cov=fastapi_langraph
+
+# Run specific test
+poetry run pytest tests/middleware/test_logging.py -v
 ```
 
-### 3. Database Integration
+### Interactive Testing
+```bash
+# Use the included chat client
+poetry run python scripts/chat.py
+```
 
-Replace the in-memory storage with your preferred database:
+### API Testing
+```python
+import requests
+import json
+
+# Test streaming endpoint
+response = requests.post(
+    'http://localhost:8000/chat/stream',
+    json={'input': 'Hello!'},
+    stream=True
+)
+
+for line in response.iter_lines():
+    if line:
+        data = json.loads(line)
+        if data['type'] == 'token':
+            print(data['content'], end='', flush=True)
+```
+
+## 🛠️ Development
+
+### Project Structure
+```
+gigr-agent/
+├── fastapi_langraph/
+│   ├── agent/
+│   │   ├── agent.py           # ReAct agent implementation
+│   │   └── tools/             # Agent tools
+│   │       └── mock_search.py # Example search tool
+│   ├── api/
+│   │   ├── routes.py          # API route aggregation
+│   │   └── routers/           # Individual routers
+│   │       ├── chat.py        # Chat streaming endpoints
+│   │       ├── system.py      # System info endpoints
+│   │       └── threads.py     # Thread management
+│   ├── core/
+│   │   └── config.py          # Application configuration
+│   ├── middleware/
+│   │   └── logging.py         # Request/response logging
+│   ├── schemas.py             # Pydantic models
+│   └── main.py                # FastAPI application
+├── scripts/
+│   └── chat.py                # Interactive chat client
+├── tests/                     # Test suite
+├── CLAUDE.md                  # AI assistant instructions
+├── pyproject.toml             # Dependencies and configuration
+└── README.md                  # This file
+```
+
+### Adding Custom Tools
+
+1. Create a new tool in `fastapi_langraph/agent/tools/`:
+```python
+from langchain_core.tools import tool
+
+@tool
+def your_custom_tool(query: str) -> str:
+    """Description of what your tool does."""
+    # Tool implementation
+    return result
+```
+
+2. Register the tool in `agent.py`:
+```python
+from fastapi_langraph.agent.tools.your_tool import your_custom_tool
+
+class ReActAgent:
+    def __init__(self):
+        self.tools = [mock_search, your_custom_tool]
+```
+
+### Configuration
+
+Environment variables in `.env`:
+```bash
+OPENAI_API_KEY=sk-...              # Required
+PROJECT_NAME=YourProject           # Optional
+DESCRIPTION=Your description       # Optional
+LOG_LEVEL=INFO                     # DEBUG, INFO, WARNING, ERROR
+```
+
+Agent configuration in `agent.py`:
+- Model: `gpt-4o-mini` (configurable)
+- Temperature: `0.1` (low for consistency)
+- Max context: 20 messages
+- Streaming: Enabled
+
+## 🚀 Production Deployment
+
+### 1. Update Persistence
+
+Replace in-memory storage with persistent backend:
 
 ```python
-# For SQLite
+# SQLite
 from langgraph.checkpoint.sqlite import SqliteSaver
-checkpointer = SqliteSaver("./your_app.db")
+checkpointer = SqliteSaver("./conversations.db")
 
-# For PostgreSQL
+# PostgreSQL
 from langgraph.checkpoint.postgres import PostgresSaver
 checkpointer = PostgresSaver(connection_string="postgresql://...")
 ```
 
-### 4. Middleware Customization
+### 2. Add Authentication
 
-Add your middleware in `fastapi_langraph/middleware/`:
-
+Implement authentication middleware:
 ```python
-# Example: Authentication, rate limiting, etc.
-@app.middleware("http")
-async def your_custom_middleware(request: Request, call_next):
-    # Your middleware logic
-    pass
+from fastapi import Security, HTTPException
+from fastapi.security import HTTPBearer
+
+security = HTTPBearer()
+
+@router.post("/chat/stream")
+async def stream_chat(
+    request: StreamRequest,
+    credentials: HTTPAuthorizationCredentials = Security(security)
+):
+    # Verify token
+    if not verify_token(credentials.credentials):
+        raise HTTPException(status_code=401)
 ```
 
-### 5. API Customization
+### 3. Deploy with Docker
 
-Extend or modify the API routers in `fastapi_langraph/api/routers/`:
-
-```python
-# Add your custom endpoints
-@router.post("/your-custom-endpoint")
-async def your_endpoint():
-    # Your endpoint logic
-    pass
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY pyproject.toml poetry.lock ./
+RUN pip install poetry && poetry install --no-dev
+COPY . .
+CMD ["poetry", "run", "uvicorn", "fastapi_langraph.main:app", "--host", "0.0.0.0"]
 ```
 
-## 🚀 Production Deployment
+### 4. Monitor and Scale
 
-### 1. Update Configuration
+- Add APM (Application Performance Monitoring)
+- Implement rate limiting
+- Set up horizontal scaling with load balancer
+- Configure observability (logs, metrics, traces)
 
-```python
-# Update fastapi_langraph/core/config.py
-class Settings(BaseSettings):
-    project_name: str = "Your Project Name"
-    description: str = "Your project description"
-    # Add your custom settings
-```
+## 📚 LangGraph Documentation
 
-### 2. Choose Your Persistence Backend
+Key references for working with LangGraph:
+- [Getting Started](https://langchain-ai.github.io/langgraph/)
+- [Building Agents](https://langchain-ai.github.io/langgraph/tutorials/get-started/1-build-basic-chatbot/)
+- [Persistence](https://langchain-ai.github.io/langgraph/concepts/persistence/)
+- [Streaming](https://langchain-ai.github.io/langgraph/concepts/streaming/)
+- [Tools Integration](https://langchain-ai.github.io/langgraph/concepts/tools/)
 
-```python
-# Production-ready persistence options
-# SQLite for small-scale
-# PostgreSQL for enterprise scale
-# Redis for caching
-```
+## 🤝 Contributing
 
-### 3. Add Monitoring
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-```python
-# Add your monitoring solution
-# Prometheus, DataDog, New Relic, etc.
-```
+### Commit Convention
 
-## 🧪 Testing Your Implementation
-
-### Unit Tests
-```bash
-# Add your tests in tests/
-poetry run pytest tests/
-```
-
-### Integration Testing
-```bash
-# Test your customized endpoints
-curl -X POST "http://localhost:8000/chat/stream" \
-     -H "Content-Type: application/json" \
-     -d '{"input": "Test your agent", "thread_id": "test-thread"}' \
-     --no-buffer
-```
-
-### Chat Client Testing
-```bash
-# Use the included interactive client
-poetry run python scripts/chat.py
-```
-
-## 📁 Template Structure
-
-```
-your-project/
-├── fastapi_langraph/          # Main application package
-│   ├── agent/                 # Agent implementation (customize this)
-│   │   └── tools/            # Agent tools (add your tools here)
-│   ├── api/                   # API layer
-│   │   └── routers/          # API routers (extend as needed)
-│   ├── core/                  # Core configuration and utilities
-│   └── middleware/            # Custom middleware
-├── scripts/                   # Utility scripts
-├── tests/                     # Test suite (add your tests)
-├── pyproject.toml            # Dependencies (update for your project)
-└── README.md                 # This file (customize for your project)
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-```bash
-# Required
-OPENAI_API_KEY=your-openai-api-key
-
-# Customize these for your project
-PROJECT_NAME=Your-Project-Name
-DESCRIPTION=Your project description
-LOG_LEVEL=INFO
-MAX_CONVERSATION_LENGTH=20
-```
-
-### Agent Configuration
-
-```python
-# Customize in fastapi_langraph/core/config.py
-AGENT_CONFIG = {
-    "model": "gpt-4o-mini",  # Choose your model
-    "temperature": 0.1,       # Adjust for your use case
-    "max_context_messages": 20,
-    "streaming": True
-}
-```
-
-## 🎯 Next Steps
-
-1. **Clone/Fork** this template
-2. **Customize** the agent logic for your use case
-3. **Add** your specific tools and capabilities
-4. **Configure** your persistence backend
-5. **Deploy** to your preferred platform
-6. **Monitor** and iterate
-
-## 🤝 Contributing to the Template
-
-Improvements to this template are welcome:
-
-1. Fork the template repository
-2. Create a feature branch
-3. Add comprehensive tests
-4. Follow the existing code style
-5. Submit a pull request
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation changes
+- `style:` Code style changes
+- `refactor:` Code refactoring
+- `test:` Test additions/changes
+- `chore:` Maintenance tasks
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+MIT License - see LICENSE file for details
 
 ## 🆘 Support
 
-- **Issues**: Submit GitHub issues for template bugs and improvements
-- **Discussions**: Use GitHub Discussions for questions about using this template
+- **Issues**: [GitHub Issues](https://github.com/posgnu/gigr-agent/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/posgnu/gigr-agent/discussions)
 
 ---
 
-**⭐ Star this template if it helps you build amazing AI applications!**
-
-**Built with ❤️ using FastAPI, LangGraph, and OpenAI**
+Built with FastAPI, LangGraph, and OpenAI

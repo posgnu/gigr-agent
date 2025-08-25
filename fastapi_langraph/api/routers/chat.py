@@ -146,52 +146,54 @@ async def stream_chat(request: StreamRequest = Body(...)) -> StreamingResponse:
             )
             yield f"{metadata_response.model_dump_json()}\n"
 
-            # Stream agent responses using astream_events
+            # Stream agent responses using proper LangGraph streaming
             async for event in memory_enabled_agent.astream(
                 input_data={"input": request.input},
                 thread_id=thread_id,
                 session_metadata=request.session_metadata,
             ):
-                # Handle token streaming from chat model
-                if event.get("event") == "on_chat_model_stream":
-                    chunk_data = event.get("data", {})
-                    content_chunk = chunk_data.get("chunk")
+                stream_mode = event.get("stream_mode")
+                chunk = event.get("chunk", {})
+                event_metadata = event.get("metadata", {})
 
-                    if (
-                        content_chunk
-                        and hasattr(content_chunk, "content")
-                        and content_chunk.content
-                    ):
+                # Handle official stream_mode="messages" format
+                # In LangGraph 0.4.5+, messages mode returns tuples: (message_chunk, metadata)
+                if stream_mode == "messages":
+                    # LangGraph 0.4.5+ returns tuple: (message_chunk, chunk_metadata)
+                    if isinstance(chunk, tuple) and len(chunk) == 2:
+                        message_chunk, chunk_metadata = chunk
+
+                        # Extract token content from the message chunk
+                        if hasattr(message_chunk, "content") and message_chunk.content:
+                            response = StreamResponse(
+                                type="token",
+                                content=message_chunk.content,
+                                thread_id=thread_id,
+                                user_id=None,
+                                metadata={**event_metadata, **chunk_metadata},
+                            )
+                            yield f"{response.model_dump_json()}\n"
+
+                    # Handle direct message chunks (fallback)
+                    elif hasattr(chunk, "content") and chunk.content:
                         response = StreamResponse(
                             type="token",
-                            content=content_chunk.content,
+                            content=chunk.content,
                             thread_id=thread_id,
                             user_id=None,
-                            metadata=None,
+                            metadata=event_metadata,
                         )
                         yield f"{response.model_dump_json()}\n"
 
-                # Handle tool events
-                elif event.get("event") in ["on_tool_start", "on_tool_end"]:
-                    safe_metadata = safe_serialize_event_data(event.get("data", {}))
-
-                    response = StreamResponse(
-                        type="tool_event",
-                        content=None,
-                        thread_id=thread_id,
-                        user_id=None,
-                        metadata=safe_metadata,
-                    )
-                    yield f"{response.model_dump_json()}\n"
-
                 # Handle errors
-                elif event.get("event") == "error":
+                elif stream_mode == "error":
+                    error_msg = chunk.get("error", "Unknown error")
                     error_response = StreamResponse(
                         type="error",
-                        content=event.get("data", {}).get("error", "Unknown error"),
+                        content=error_msg,
                         thread_id=thread_id,
                         user_id=None,
-                        metadata=None,
+                        metadata=event_metadata,
                     )
                     yield f"{error_response.model_dump_json()}\n"
 
