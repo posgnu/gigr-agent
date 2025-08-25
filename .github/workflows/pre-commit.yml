@@ -1,0 +1,24 @@
+name: Linting and Formatting
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4 # Checks out your repository's code
+    - uses: actions/setup-python@v5 # Sets up Python
+      with:
+        python-version: '3.11' # Match the exact version in pyproject.toml
+    - name: Install pre-commit
+      run: pip install pre-commit
+    - name: List dotfiles
+      run: ls -la
+    - name: Run pre-commit hooks
+      run: pre-commit run --all-files # Runs hooks against all files
