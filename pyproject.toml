@@ -16,6 +16,7 @@ langchain = "^0.2.6"
 langchain-openai = "^0.1.9"
 langgraph = "^0.1.1"
 langchain-core = "^0.2.11"
+loguru = "^0.7.2"
 
 
 [tool.poetry.group.dev.dependencies]

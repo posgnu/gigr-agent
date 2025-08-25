@@ -1,5 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
+.claude
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -106,3 +108,5 @@ venv.bak/
 .mypy_cache/
 
 .idea/*
+
+CLAUDE.md
