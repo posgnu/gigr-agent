@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class StreamRequest(BaseModel):  # type: ignore[misc]
+class StreamRequest(BaseModel):
     """Request for streaming chat with thread persistence."""
 
     input: str = Field(..., description="The user's query for the agent")
@@ -11,12 +11,12 @@ class StreamRequest(BaseModel):  # type: ignore[misc]
         None,
         description="Thread ID for conversation persistence. If not provided, a new thread will be created.",
     )
-    session_metadata: Optional[Dict[str, Any]] = Field(
+    session_metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Additional session context and metadata"
     )
 
 
-class StreamResponse(BaseModel):  # type: ignore[misc]
+class StreamResponse(BaseModel):
     """Response for streaming chat events."""
 
     type: str = Field(
@@ -33,7 +33,7 @@ class StreamResponse(BaseModel):  # type: ignore[misc]
     )
 
 
-class ThreadHistoryRequest(BaseModel):  # type: ignore[misc]
+class ThreadHistoryRequest(BaseModel):
     """Request for retrieving thread conversation history."""
 
     thread_id: str = Field(..., description="Thread ID to retrieve history for")
@@ -42,7 +42,7 @@ class ThreadHistoryRequest(BaseModel):  # type: ignore[misc]
     )
 
 
-class ThreadHistoryResponse(BaseModel):  # type: ignore[misc]
+class ThreadHistoryResponse(BaseModel):
     """Response containing thread conversation history."""
 
     thread_id: str = Field(..., description="Thread ID")
@@ -50,7 +50,7 @@ class ThreadHistoryResponse(BaseModel):  # type: ignore[misc]
     total_messages: int = Field(..., description="Total number of messages in thread")
 
 
-class ErrorResponse(BaseModel):  # type: ignore[misc]
+class ErrorResponse(BaseModel):
     """Standard error response format."""
 
     error: str = Field(..., description="Error type")

@@ -111,7 +111,7 @@ def safe_serialize_event_data(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-@router.post("/stream")  # type: ignore[misc]
+@router.post("/stream")
 async def stream_chat(request: StreamRequest = Body(...)) -> StreamingResponse:
     """
     Stream chat responses with thread-based persistence.
@@ -146,15 +146,15 @@ async def stream_chat(request: StreamRequest = Body(...)) -> StreamingResponse:
             )
             yield f"{metadata_response.model_dump_json()}\n"
 
-            # Stream agent responses
-            async for chunk in memory_enabled_agent.astream_events(
+            # Stream agent responses using astream_events
+            async for event in memory_enabled_agent.astream(
                 input_data={"input": request.input},
                 thread_id=thread_id,
                 session_metadata=request.session_metadata,
             ):
-                # Transform agent output to API response format
-                if chunk.get("event") == "on_chat_model_stream":
-                    chunk_data = chunk.get("data", {})
+                # Handle token streaming from chat model
+                if event.get("event") == "on_chat_model_stream":
+                    chunk_data = event.get("data", {})
                     content_chunk = chunk_data.get("chunk")
 
                     if (
@@ -171,9 +171,9 @@ async def stream_chat(request: StreamRequest = Body(...)) -> StreamingResponse:
                         )
                         yield f"{response.model_dump_json()}\n"
 
-                elif chunk.get("event") in ["on_tool_start", "on_tool_end"]:
-                    # Safely serialize tool event data
-                    safe_metadata = safe_serialize_event_data(chunk.get("data", {}))
+                # Handle tool events
+                elif event.get("event") in ["on_tool_start", "on_tool_end"]:
+                    safe_metadata = safe_serialize_event_data(event.get("data", {}))
 
                     response = StreamResponse(
                         type="tool_event",
@@ -184,10 +184,11 @@ async def stream_chat(request: StreamRequest = Body(...)) -> StreamingResponse:
                     )
                     yield f"{response.model_dump_json()}\n"
 
-                elif chunk.get("event") == "error":
+                # Handle errors
+                elif event.get("event") == "error":
                     error_response = StreamResponse(
                         type="error",
-                        content=chunk.get("data", {}).get("error", "Unknown error"),
+                        content=event.get("data", {}).get("error", "Unknown error"),
                         thread_id=thread_id,
                         user_id=None,
                         metadata=None,

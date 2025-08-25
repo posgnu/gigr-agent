@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/threads", tags=["threads"])
 
 
-@router.get("/{thread_id}/history")  # type: ignore[misc]
+@router.get("/{thread_id}/history")
 async def get_thread_history(
     thread_id: str,
     limit: Optional[int] = Query(
@@ -61,7 +61,7 @@ async def get_thread_history(
         )
 
 
-@router.delete("/{thread_id}", status_code=HTTP_204_NO_CONTENT)  # type: ignore[misc]
+@router.delete("/{thread_id}", status_code=HTTP_204_NO_CONTENT)
 async def delete_thread(thread_id: str, response: Response) -> None:
     """
     Delete a specific thread and all its conversation history.
@@ -94,7 +94,7 @@ async def delete_thread(thread_id: str, response: Response) -> None:
         )
 
 
-@router.put("/{thread_id}/clear")  # type: ignore[misc]
+@router.put("/{thread_id}/clear")
 async def clear_thread(thread_id: str) -> ThreadHistoryResponse:
     """
     Clear all messages from a specific thread while keeping the thread active.
@@ -126,7 +126,7 @@ async def clear_thread(thread_id: str) -> ThreadHistoryResponse:
         )
 
 
-@router.put("/{thread_id}/archive")  # type: ignore[misc]
+@router.put("/{thread_id}/archive")
 async def archive_thread(thread_id: str) -> ThreadHistoryResponse:
     """
     Archive a specific thread (placeholder for future implementation).

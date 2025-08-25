@@ -8,7 +8,7 @@ from fastapi_langraph.core.config import settings
 router = APIRouter(tags=["system"])
 
 
-@router.get("/")  # type: ignore[misc]
+@router.get("/")
 def read_root() -> Dict[str, str]:
     """Root endpoint returning service information."""
     return {
@@ -19,7 +19,7 @@ def read_root() -> Dict[str, str]:
     }
 
 
-@router.get("/info")  # type: ignore[misc]
+@router.get("/info")
 def read_info() -> Dict[str, Any]:
     """Get comprehensive service information and capabilities."""
     return {
@@ -43,7 +43,7 @@ def read_info() -> Dict[str, Any]:
     }
 
 
-@router.get("/health")  # type: ignore[misc]
+@router.get("/health")
 def health_check() -> Dict[str, Any]:
     """Health check endpoint for monitoring."""
     return {"status": "healthy", "service": settings.PROJECT_NAME, "version": "1.0.0"}

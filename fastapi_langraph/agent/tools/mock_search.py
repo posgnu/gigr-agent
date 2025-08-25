@@ -1,7 +1,7 @@
 from langchain_core.tools import tool
 
 
-@tool  # type: ignore[misc]
+@tool
 def mock_search(query: str) -> str:
     """A mock search tool that returns a fixed string."""
     if "error" in query.lower():

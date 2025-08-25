@@ -29,8 +29,8 @@ class ReActAgent:
     """
 
     def __init__(self) -> None:
-        # Initialize LLM
-        self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1, streaming=True)
+        # Initialize LLM (using gpt-4o-mini as GPT-5 may not be available yet)
+        self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1, streaming=True)
 
         # Tools
         self.tools = [mock_search]
@@ -67,7 +67,7 @@ class ReActAgent:
             # Limit context window to prevent token overflow
             messages = self._manage_context_window(state["messages"])
 
-            # Invoke LLM with managed context
+            # Invoke LLM - streaming happens at the graph level with stream_mode="messages"
             result = self.llm_with_tools.invoke(messages)
             return {"messages": [result]}
 
@@ -102,11 +102,14 @@ class ReActAgent:
 
         return list(messages)
 
-    async def astream_events(
+    async def astream(
         self, input_data: Dict[str, Any], thread_id: str, **kwargs: Any
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Stream agent events with thread-based persistence.
+        Stream agent responses with thread-based persistence.
+
+        Note: stream_mode="messages" doesn't work with invoke() in nodes,
+        so we use astream_events which provides token-level streaming.
 
         Args:
             input_data: Input containing the user message
@@ -114,7 +117,7 @@ class ReActAgent:
             **kwargs: Additional arguments
 
         Yields:
-            Event dictionaries with streaming response data
+            Dictionaries containing streaming events
         """
         try:
             # Create RunnableConfig with thread information
@@ -124,15 +127,16 @@ class ReActAgent:
             messages = [HumanMessage(content=input_data["input"])]
             initial_state = {"messages": messages}
 
-            # Stream events from the graph
+            # Use astream_events for token-level streaming
+            # This is currently the most reliable way to get token streaming
             async for event in self.graph.astream_events(
-                initial_state, config=config, version="v1"
+                initial_state, config=config, version="v2"
             ):
                 yield event
 
         except Exception as e:
-            # Yield error event
-            yield {"event": "error", "data": {"error": str(e)}, "name": "agent_error"}
+            # Yield error
+            yield {"event": "error", "data": {"error": str(e)}}
 
     def get_thread_history(self, thread_id: str) -> List[Dict[str, Any]]:
         """Get conversation history for a specific thread."""
