@@ -72,10 +72,37 @@ OPENAI_API_KEY=your-openai-api-key
 PROJECT_NAME=FastAPI-LangGraph
 DESCRIPTION=LangGraph Agent with Streaming
 LOG_LEVEL=INFO
+MCP_SERVER_PATH=/path/to/gigr-db-mcp  # Optional: Path to MCP server
 EOF
 ```
 
-4. **Run the development server**
+4. **Setup MCP Tools (Optional)**
+
+To enable MCP (Model Context Protocol) tools for database operations:
+
+```bash
+# Clone the MCP server repository
+git clone https://github.com/posgnu/gigr-db-mcp.git /path/to/gigr-db-mcp
+cd /path/to/gigr-db-mcp
+
+# Install MCP server dependencies
+poetry install
+
+# Test the MCP server (optional)
+poetry run gigr-mcp-server
+
+# Return to the main project
+cd /path/to/gigr-agent
+```
+
+Update your `.env` file with the MCP server path:
+```bash
+MCP_SERVER_PATH=/path/to/gigr-db-mcp
+```
+
+The MCP server will be automatically started when the FastAPI server launches. If the MCP server is not available, the agent will continue with local tools only.
+
+5. **Run the development server**
 ```bash
 poetry run uvicorn fastapi_langraph.main:app --reload
 ```
